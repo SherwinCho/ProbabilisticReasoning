@@ -1,4 +1,5 @@
 import os.path
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 import util
@@ -19,9 +20,16 @@ def learn_distributions(file_lists_by_category):
     the second element is a dict whose keys are words, and whose values are the 
     smoothed estimates of q_d 
     """
-    ### TODO: Write your code here
+    num_spam_emails = len(file_lists_by_category[0])
+    num_ham_emails = len(file_lists_by_category[1])
     
+    spam_word_to_count = util.get_counts(file_lists_by_category[0])
+    ham_word_to_count = util.get_counts(file_lists_by_category[1])
     
+    p_d = {k:((v+1.0)/(num_spam_emails+2)) for (k, v) in spam_word_to_count.items()}
+    q_d = {k:((v+1.0)/(num_ham_emails+2)) for (k, v) in ham_word_to_count.items()}
+        
+    probabilities_by_category = (p_d, q_d)
     return probabilities_by_category
 
 def classify_new_email(filename,probabilities_by_category,prior_by_category):
@@ -44,19 +52,24 @@ def classify_new_email(filename,probabilities_by_category,prior_by_category):
     second element is a two-element list as [log p(y=1|x), log p(y=0|x)], 
     representing the log posterior probabilities
     """
-    ### TODO: Write your code here
-    
+    # Parse the test file.
+    (p_d, q_d) = probabilities_by_category
+    sum_log_prob_given_spam = 0.0
+    sum_log_prob_given_ham = 0.0
+    for word in util.get_words_in_file(filename):
+        sum_log_prob_given_spam += math.log(p_d.get(word, 0.5))
+        sum_log_prob_given_ham += math.log(q_d.get(word, 0.5))
 
-    return classify_result
+    result = ("spam", "ham")[sum_log_prob_given_spam/sum_log_prob_given_ham > 0.99]
+    return (result, [sum_log_prob_given_spam, sum_log_prob_given_ham])
 
 if __name__ == '__main__':
     
-    # folder for training and testing 
     spam_folder = "data/spam"
     ham_folder = "data/ham"
     test_folder = "data/testing"
 
-    # generate the file lists for training
+    # Get training data
     file_lists = []
     for folder in (spam_folder, ham_folder):
         file_lists.append(util.get_files_in_folder(folder))
@@ -69,7 +82,8 @@ if __name__ == '__main__':
     
     # Store the classification results
     performance_measures = np.zeros([2,2])
-    # explanation of performance_measures:
+    
+    # Explanation of performance_measures:
     # columns and rows are indexed by 0 = 'spam' and 1 = 'ham'
     # rows correspond to true label, columns correspond to guessed label
     # to be more clear, performance_measures = [[p1 p2]
